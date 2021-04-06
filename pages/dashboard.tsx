@@ -2,17 +2,29 @@ import Head from 'next/head'
 import React, { useEffect, useState } from 'react'
 import { Button, Form, Input } from 'semantic-ui-react'
 import { Layout, Terminal } from '../components'
-import { RconOptions } from '../lib/Rcon'
+import { io } from 'socket.io-client'
+
+const socket = io({ reconnectionAttempts: 10 })
 
 const dashboard = (): JSX.Element => {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const [options, setOptions] = useState<RconOptions>()
     const [host, setHost] = useState<string>('')
     const [password, setPassword] = useState<string>('')
     const [port, setPort] = useState<number>(25575)
+    const [connected, setConnected] = useState<boolean>(false)
 
     useEffect(() => {
         setHost(window.localStorage.getItem('host') ?? '')
+
+        socket.onAny(console.log)
+
+        socket.on('serverConnectError', () => {
+            setConnected(false)
+            console.log('connection error')
+        })
+
+        socket.on('serverConnectSuccess', () => {
+            setConnected(true)
+        })
     }, [])
 
     return (
@@ -20,10 +32,15 @@ const dashboard = (): JSX.Element => {
             <Head>
                 <title>RCON Dashboard</title>
             </Head>
-            {options ? (
-                <Terminal {...options} />
+            {connected ? (
+                <Terminal socket={socket} />
             ) : (
-                <Form>
+                <Form
+                    onSubmit={(e) => {
+                        e.preventDefault()
+                        socket.emit('serverConnect', { host, password, port })
+                    }}
+                >
                     <Form.Field
                         control={Input}
                         label='Host'
@@ -51,14 +68,7 @@ const dashboard = (): JSX.Element => {
                         value={port}
                         onChange={({ target }) => setPort(target.value)}
                     />
-                    <Button
-                        type='submit'
-                        primary
-                        onClick={(e) => {
-                            e.preventDefault()
-                            setOptions({ host, password, port })
-                        }}
-                    >
+                    <Button type='submit' primary>
                         Connect
                     </Button>
                 </Form>

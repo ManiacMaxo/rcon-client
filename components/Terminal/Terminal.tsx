@@ -1,28 +1,25 @@
 import React, { FormEvent, useEffect, useState } from 'react'
 import { Form, Input } from 'semantic-ui-react'
+import { Socket } from 'socket.io-client'
 import { v4 } from 'uuid'
-import Rcon, { RconOptions } from '../../lib/Rcon'
 
-const Terminal = (props: RconOptions): JSX.Element => {
-    const client = new Rcon(props.host, props.password, props.port)
+const Terminal = (props: { socket: Socket }): JSX.Element => {
+    const [log, setLog] = useState<string[]>([])
 
-    // prettier-ignore
     useEffect(() => {
-        client.connect()
+        props.socket.onAny((e, d) => console.log(e, d))
 
-        client.on('response', (res) => {
+        props.socket.on('response', (res) => {
             setLog((l) => [...l, res])
         })
     }, [])
-
-    const [log, setLog] = useState<string[]>([])
 
     const handleCommand = async (
         e: FormEvent,
         { command }: { command: string }
     ) => {
         e.preventDefault()
-        client.send(command)
+        props.socket.emit('command', command)
         setLog((l) => [...l, command])
     }
 
